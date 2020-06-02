@@ -1,0 +1,76 @@
+# quarkus-devmode-fails-for-variable-packaging
+
+This test case should 
+
+. produce a standard jee WAR when building with `mvn clean package`,
+. build an executable Quarkus runner JAR by running `mvn -Pquarkus clean package`,
+. enter Quarkus dev mode with `mvn -Pquarkus clean package quarkus:dev`.
+
+In order to achieve this, Quarkus Properties, dependencies and plugins are declared inside a maven profile name `quarkus`. The maven packaging type in `pom.xml` defaults to `war` and is modified to `jar` inside the profile:
+
+[code]
+----
+<project ...>
+  ...
+  <packaging>${packaging.type}</packaging>
+
+  <properties>
+    <packaging.type>war</packaging.type>
+  </properties>
+  
+  ...
+  <profiles>
+    <profile>
+      <id>quarkus</id>
+      <properties>
+        <packaging.type>jar</packaging.type>
+
+----
+
+That works totally fine for 1. (standard WAR) and 2. (Quarkus runner JAR), but dev mode seems to hang within application init:
+
+[code]
+----
+$ mvn -Pquarkus clean package quarkus:dev
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------< de.gedoplan:quarkus-devmode-fails-for-variable-packaging >------
+[INFO] Building quarkus-devmode-fails-for-variable-packaging 1.0-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- maven-clean-plugin:2.5:clean (default-clean) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] Deleting C:\GEDOPLAN\projects\gedoplan\issues\quarkus-devmode-fails-for-variable-packaging\target
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 1 source file to C:\GEDOPLAN\projects\gedoplan\issues\quarkus-devmode-fails-for-variable-packaging\target\classes
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\GEDOPLAN\projects\gedoplan\issues\quarkus-devmode-fails-for-variable-packaging\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.8.1:testCompile (default-testCompile) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] No sources to compile
+[INFO]
+[INFO] --- maven-surefire-plugin:2.22.1:test (default-test) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] No tests to run.
+[INFO]
+[INFO] --- maven-jar-plugin:2.4:jar (default-jar) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] Building jar: C:\GEDOPLAN\projects\gedoplan\issues\quarkus-devmode-fails-for-variable-packaging\target\quarkus-devmode-fails-for-variable-packaging-1.0-SNAPSHOT.jar
+[INFO]
+[INFO] --- quarkus-maven-plugin:1.4.2.Final:build (default) @ quarkus-devmode-fails-for-variable-packaging ---
+[INFO] [org.jboss.threads] JBoss Threads version 3.1.1.Final
+[INFO] [io.quarkus.deployment.pkg.steps.JarResultBuildStep] Building thin jar: C:\GEDOPLAN\projects\gedoplan\issues\quarkus-devmode-fails-for-variable-packaging\target\quarkus-devmode-fails-for-variable-packaging-1.0-SNAPSHOT-runner.jar
+[INFO] [io.quarkus.deployment.QuarkusAugmentor] Quarkus augmentation completed in 1253ms
+[INFO]
+[INFO] --- quarkus-maven-plugin:1.4.2.Final:dev (default-cli) @ quarkus-devmode-fails-for-variable-packaging ---
+Listening for transport dt_socket at address: 5005
+----
+
+If you change `<packaging>${packaging.type}</packaging>` into `<packaging>jar</packaging>`, dev mode works as expected (but obviously no WAR file can be build anymore ...).
+
+Could it be the case, that dev mode build does not expand properties in `<packaging>` like maven does?
